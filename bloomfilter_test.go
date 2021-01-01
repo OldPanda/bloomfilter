@@ -124,7 +124,7 @@ func TestBloomFilterSerialization(t *testing.T) {
 }
 
 func TestJavaCompatibility(t *testing.T) {
-	file1, err := os.Open("guava_dump_files/100_0_001_0_to_49_test.out")
+	file1, err := os.Open("guava_dump_files/100_0_001_0_to_49_test.dump")
 	defer file1.Close()
 	b, err := ioutil.ReadAll(file1)
 	bf1, err := FromBytes(b)
@@ -142,7 +142,7 @@ func TestJavaCompatibility(t *testing.T) {
 		}
 	}
 
-	file2, _ := os.Open("guava_dump_files/500_0_01_0_to_99_test.out")
+	file2, _ := os.Open("guava_dump_files/500_0_01_0_to_99_test.dump")
 	defer file1.Close()
 	b, _ = ioutil.ReadAll(file2)
 	bf2, err := FromBytes(b)
