@@ -28,14 +28,14 @@ import (
 )
 
 func main() {
-    // create bloomfilter with expected insertion=500, error rate=0.01
-    bf, _ := bloomfilter.NewBloomFilter(500, 0.01)
+	// create bloomfilter with expected insertion=500, error rate=0.01
+	bf, _ := bloomfilter.NewBloomFilter(500, 0.01)
     // add number 0~199 into bloomfilter
 	for i := 0; i < 200; i++ {
 		bf.Put(i)
 	}
 
-    // check if number 100 and 200 are in bloomfilter
+	// check if number 100 and 200 are in bloomfilter
 	fmt.Println(bf.MightContain(100))
 	fmt.Println(bf.MightContain(200))
 }
@@ -48,16 +48,16 @@ package main
 import "github.com/OldPanda/bloomfilter"
 
 func main() {
-    // expected insertion=500, error rate=0.01
-    bf, _ := bloomfilter.NewBloomFilter(500, 0.01)
-    // add 0~199 into bloomfilter
+	// expected insertion=500, error rate=0.01
+	bf, _ := bloomfilter.NewBloomFilter(500, 0.01)
+	// add 0~199 into bloomfilter
 	for i := 0; i < 200; i++ {
 		bf.Put(i)
 	}
 
-    // serialize bloomfilter to byte array
-    bytes := bf.ToBytes()
-    // handling the bytes ...
+	// serialize bloomfilter to byte array
+	bytes := bf.ToBytes()
+	// handling the bytes ...
 }
 ```
 
@@ -72,9 +72,9 @@ import (
 )
 
 func main() {
-    // create bloomfilter from byte array
-    bf, _ := bloomfilter.FromBytes(bytes)
-    // check whether number 100 is in bloomfilter
-    fmt.Println(bf.MightContain(100))
+	// create bloomfilter from byte array
+	bf, _ := bloomfilter.FromBytes(bytes)
+	// check whether number 100 is in bloomfilter
+	fmt.Println(bf.MightContain(100))
 }
 ```
