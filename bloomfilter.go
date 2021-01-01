@@ -1,6 +1,7 @@
 package bloomfilter
 
 // #cgo CFLAGS: -Wall
+// #cgo LDFLAGS: -lm
 // #include<math.h>
 import "C"
 import (
