@@ -124,9 +124,9 @@ func TestBloomFilterSerialization(t *testing.T) {
 }
 
 func TestJavaCompatibility(t *testing.T) {
-	file1, err := os.Open("guava_dump_files/100_0_001_0_to_49_test.dump")
+	file1, _ := os.Open("guava_dump_files/100_0_001_0_to_49_test.dump")
 	defer file1.Close()
-	b, err := ioutil.ReadAll(file1)
+	b, _ := ioutil.ReadAll(file1)
 	bf1, err := FromBytes(b)
 	if err != nil {
 		t.Errorf("Deserialization from Guava dump file failed: %v", err)
