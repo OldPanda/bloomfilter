@@ -160,3 +160,18 @@ func TestJavaCompatibility(t *testing.T) {
 		}
 	}
 }
+
+var bf *BloomFilter
+
+func BenchmarkBloomfilterInsertion(b *testing.B) {
+	bf, _ = NewBloomFilter(b.N, 0.01)
+	for i := 0; i < b.N; i++ {
+		bf.Put(i)
+	}
+}
+
+func BenchmarkBloomfilterQuery(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		bf.MightContain(i)
+	}
+}
