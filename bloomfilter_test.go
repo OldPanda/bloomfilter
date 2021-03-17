@@ -161,6 +161,26 @@ func TestJavaCompatibility(t *testing.T) {
 	}
 }
 
+func TestBloomFilterInvalidParams(t *testing.T) {
+	// too small error rate
+	_, err := NewBloomFilter(500, 0.0)
+	if err == nil {
+		t.Error("Expected error on non-positive error rate.")
+	}
+
+	// too large error rate
+	_, err = NewBloomFilter(500, 1.0)
+	if err == nil {
+		t.Error("Expected error on error rate larger than or equal to 1.0.")
+	}
+
+	// negative insertions
+	_, err = NewBloomFilter(-1, 0.01)
+	if err == nil {
+		t.Error("Expected error on negative insertions.")
+	}
+}
+
 var bf *BloomFilter
 
 func BenchmarkBloomfilterInsertion(b *testing.B) {
