@@ -31,7 +31,7 @@ import (
 func main() {
 	// create bloomfilter with expected insertion=500, error rate=0.01
 	bf, _ := bloomfilter.NewBloomFilter(500, 0.01)
-    // add number 0~199 into bloomfilter
+	// add number 0~199 into bloomfilter
 	for i := 0; i < 200; i++ {
 		bf.Put(i)
 	}
