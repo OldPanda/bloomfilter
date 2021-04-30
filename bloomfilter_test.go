@@ -161,6 +161,22 @@ func TestJavaCompatibility(t *testing.T) {
 	}
 }
 
+func TestGarbageByteArray(t *testing.T) {
+	garbageBytes := [][]byte{
+		[]byte("this-is-a-line-of-garbage"),
+		{0},
+		{0, 1},
+		{0, 1, 2},
+		{0, 1, 2, 3, 4, 5},
+	}
+	for _, bytes := range garbageBytes {
+		_, err := FromBytes(bytes)
+		if err == nil {
+			t.Errorf("Expected error on garbage byte array: %v", bytes)
+		}
+	}
+}
+
 func TestBloomFilterInvalidParams(t *testing.T) {
 	// too small error rate
 	_, err := NewBloomFilter(500, 0.0)

@@ -64,9 +64,13 @@ func FromBytes(b []byte) (*BloomFilter, error) {
 	// read strategy
 	strategyByte, err := reader.ReadByte()
 	if err != nil {
-		return nil, errors.New("Failed to read strategy")
+		return nil, fmt.Errorf("Failed to read strategy: %v", err)
 	}
-	strategy := strategyList[int(strategyByte)]
+	strategyIndex := int(strategyByte)
+	if strategyIndex >= len(strategyList) {
+		return nil, fmt.Errorf("Unknown strategy byte: %v", strategyByte)
+	}
+	strategy := strategyList[strategyIndex]
 
 	// read number of hash functions
 	numHashFuncByte, err := reader.ReadByte()
@@ -80,6 +84,9 @@ func FromBytes(b []byte) (*BloomFilter, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed to read number of bits: %v", err)
 	}
+	if len(numUint64Bytes) != 4 {
+		return nil, fmt.Errorf("Not a valid uint32 bytes: %v", numUint64Bytes)
+	}
 	numUint64 := binary.BigEndian.Uint32(numUint64Bytes)
 	array := bitarray.NewBitArray(uint64(numUint64) * 64)
 
@@ -88,6 +95,9 @@ func FromBytes(b []byte) (*BloomFilter, error) {
 		block, err := ioutil.ReadAll(io.LimitReader(reader, 8))
 		if err != nil {
 			return nil, fmt.Errorf("Failed to build bitarray: %v", err)
+		}
+		if len(block) != 8 {
+			return nil, fmt.Errorf("Not a valid uint64 bytes: %v", block)
 		}
 		num := binary.BigEndian.Uint64(block)
 		var pos uint64 = 1 << 63
