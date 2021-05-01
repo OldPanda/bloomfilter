@@ -9,11 +9,17 @@ import (
 func GetBytes(arg interface{}) []byte {
 	switch v := arg.(type) {
 	case int32:
+		var buf [4]byte
+		binary.LittleEndian.PutUint32(buf[:], uint32(v))
+		return buf[:]
 	case uint32:
 		var buf [4]byte
 		binary.LittleEndian.PutUint32(buf[:], v)
 		return buf[:]
 	case int64:
+		var buf [8]byte
+		binary.LittleEndian.PutUint64(buf[:], uint64(v))
+		return buf[:]
 	case uint64:
 		var buf [8]byte
 		binary.LittleEndian.PutUint64(buf[:], v)
@@ -25,13 +31,14 @@ func GetBytes(arg interface{}) []byte {
 			return buf[:]
 		} else if v >= math.MinInt64 && v <= math.MaxInt64 {
 			var buf [8]byte
-			binary.LittleEndian.PutUint32(buf[:], uint32(v))
+			binary.LittleEndian.PutUint64(buf[:], uint64(v))
 			return buf[:]
 		} else {
 			return []byte{}
 		}
 	case string:
 		return []byte(v)
+	default:
+		return []byte{}
 	}
-	return []byte{}
 }
