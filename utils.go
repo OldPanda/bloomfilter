@@ -38,6 +38,8 @@ func GetBytes(arg interface{}) []byte {
 		}
 	case string:
 		return []byte(v)
+	case []byte:
+		return v
 	default:
 		return []byte{}
 	}
