@@ -88,8 +88,9 @@ The benchmark testing runs on element insertion and query separately.
 goos: darwin
 goarch: amd64
 pkg: github.com/OldPanda/bloomfilter
-BenchmarkBloomfilterInsertion-8   	 4969700	       370 ns/op	      17 B/op	       1 allocs/op
-BenchmarkBloomfilterQuery-8       	 4464774	       263 ns/op	      15 B/op	       1 allocs/op
+cpu: Intel(R) Core(TM) i7-4870HQ CPU @ 2.50GHz
+BenchmarkBloomfilterInsertion-8          4930207               355.4 ns/op            17 B/op          1 allocs/op
+BenchmarkBloomfilterQuery-8              4678051               255.6 ns/op            15 B/op          1 allocs/op
 PASS
-ok  	github.com/OldPanda/bloomfilter	3.546s
+ok      github.com/OldPanda/bloomfilter 3.472s
 ```
