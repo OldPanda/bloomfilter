@@ -75,6 +75,16 @@ func TestBloomFilter(t *testing.T) {
 	}
 }
 
+func TestBloomFilterWithUnusualKeys(t *testing.T) {
+	bf, _ := NewBloomFilter(500, 0.01)
+	if ok := bf.Put([]int{1, 2, 3}); ok {
+		t.Error("Expected false result when putting an int array")
+	}
+	if ok := bf.MightContain([]int{1, 2, 3}); ok {
+		t.Error("Expected false result when checking existence of an int array")
+	}
+}
+
 func TestBloomFilterSerialization(t *testing.T) {
 	bf, _ := NewBloomFilter(500, 0.01)
 	for i := 0; i < 100; i++ {
