@@ -164,6 +164,7 @@ func TestJavaCompatibility(t *testing.T) {
 func TestGarbageByteArray(t *testing.T) {
 	garbageBytes := [][]byte{
 		[]byte("this-is-a-line-of-garbage"),
+		{},
 		{0},
 		{0, 1},
 		{0, 1, 2},
