@@ -222,3 +222,11 @@ func BenchmarkBloomfilterQuery(b *testing.B) {
 		bf.MightContain(i)
 	}
 }
+
+var fileContent, _ = ioutil.ReadFile("guava_dump_files/100_0_001_0_to_49_test.dump")
+
+func BenchmarkBloomfilterDeserialization(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		FromBytes(fileContent)
+	}
+}
