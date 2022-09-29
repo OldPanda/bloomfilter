@@ -16,3 +16,6 @@
 
 # MacOS files
 .DS_Store
+
+# Vulnerability check directory
+target/
