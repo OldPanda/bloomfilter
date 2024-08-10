@@ -35,13 +35,13 @@ func NewBloomFilter(expectedInsertions int, errRate float64) (*BloomFilter, erro
 // * &Murur128Mitz64{}
 func NewBloomFilterWithStrategy(expectedInsertions int, errRate float64, strategy Strategy) (*BloomFilter, error) {
 	if errRate <= 0.0 {
-		return nil, errors.New("Error rate must be > 0.0")
+		return nil, errors.New("error rate must be > 0.0")
 	}
 	if errRate >= 1.0 {
-		return nil, errors.New("Error rate must be < 1.0")
+		return nil, errors.New("error rate must be < 1.0")
 	}
 	if expectedInsertions < 0 {
-		return nil, errors.New("Expected insertions must be >= 0")
+		return nil, errors.New("expected insertions must be >= 0")
 	}
 	if expectedInsertions == 0 {
 		expectedInsertions = 1
@@ -63,28 +63,28 @@ func FromBytes(b []byte) (*BloomFilter, error) {
 	// read strategy
 	strategyByte, err := reader.ReadByte()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read strategy: %v", err)
+		return nil, fmt.Errorf("failed to read strategy: %v", err)
 	}
 	strategyIndex := int(strategyByte)
 	if strategyIndex >= len(strategyList) {
-		return nil, fmt.Errorf("Unknown strategy byte: %v", strategyByte)
+		return nil, fmt.Errorf("unknown strategy byte: %v", strategyByte)
 	}
 	strategy := strategyList[strategyIndex]
 
 	// read number of hash functions
 	numHashFuncByte, err := reader.ReadByte()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read number of hash functions: %v", err)
+		return nil, fmt.Errorf("failed to read number of hash functions: %v", err)
 	}
 	numHashFunctions := int(numHashFuncByte)
 
 	// read bitarray capacity
 	numUint64Bytes, err := io.ReadAll(io.LimitReader(reader, 4))
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read number of bits: %v", err)
+		return nil, fmt.Errorf("failed to read number of bits: %v", err)
 	}
 	if len(numUint64Bytes) != 4 {
-		return nil, fmt.Errorf("Not a valid uint32 bytes: %v", numUint64Bytes)
+		return nil, fmt.Errorf("not a valid uint32 bytes: %v", numUint64Bytes)
 	}
 	numUint64 := binary.BigEndian.Uint32(numUint64Bytes)
 	array := bitarray.NewBitArray(uint64(numUint64) * 64)
@@ -93,10 +93,10 @@ func FromBytes(b []byte) (*BloomFilter, error) {
 	for blockIdx := 0; blockIdx < int(numUint64); blockIdx++ {
 		block, err := io.ReadAll(io.LimitReader(reader, 8))
 		if err != nil {
-			return nil, fmt.Errorf("Failed to build bitarray: %v", err)
+			return nil, fmt.Errorf("failed to build bitarray: %v", err)
 		}
 		if len(block) != 8 {
-			return nil, fmt.Errorf("Not a valid uint64 bytes: %v", block)
+			return nil, fmt.Errorf("not a valid uint64 bytes: %v", block)
 		}
 		num := binary.BigEndian.Uint64(block)
 		var pos uint64 = 1 << 63
