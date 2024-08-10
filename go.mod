@@ -1,6 +1,6 @@
 module github.com/OldPanda/bloomfilter
 
-go 1.15
+go 1.16
 
 require (
 	github.com/Workiva/go-datastructures v1.1.5
