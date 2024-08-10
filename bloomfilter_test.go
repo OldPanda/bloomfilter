@@ -2,7 +2,7 @@ package bloomfilter
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"os"
 	"testing"
 )
@@ -136,7 +136,7 @@ func TestBloomFilterSerialization(t *testing.T) {
 func TestJavaCompatibility(t *testing.T) {
 	file1, _ := os.Open("guava_dump_files/100_0_001_0_to_49_test.dump")
 	defer file1.Close()
-	b, _ := ioutil.ReadAll(file1)
+	b, _ := io.ReadAll(file1)
 	bf1, err := FromBytes(b)
 	if err != nil {
 		t.Errorf("Deserialization from Guava dump file failed: %v", err)
@@ -154,7 +154,7 @@ func TestJavaCompatibility(t *testing.T) {
 
 	file2, _ := os.Open("guava_dump_files/500_0_01_0_to_99_test.dump")
 	defer file1.Close()
-	b, _ = ioutil.ReadAll(file2)
+	b, _ = io.ReadAll(file2)
 	bf2, err := FromBytes(b)
 	if err != nil {
 		t.Errorf("Deserialization from Guava dump file failed: %v", err)
@@ -223,7 +223,7 @@ func BenchmarkBloomfilterQuery(b *testing.B) {
 	}
 }
 
-var fileContent, _ = ioutil.ReadFile("guava_dump_files/100_0_001_0_to_49_test.dump")
+var fileContent, _ = os.ReadFile("guava_dump_files/100_0_001_0_to_49_test.dump")
 
 func BenchmarkBloomfilterDeserialization(b *testing.B) {
 	for i := 0; i < b.N; i++ {
