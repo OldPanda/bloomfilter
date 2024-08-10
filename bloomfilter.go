@@ -1,9 +1,5 @@
 package bloomfilter
 
-// #cgo CFLAGS: -Wall
-// #cgo LDFLAGS: -lm
-// #include<math.h>
-import "C"
 import (
 	"bytes"
 	"encoding/binary"
@@ -146,12 +142,9 @@ func numOfBits(expectedInsertions int, errRate float64) int {
 	if errRate == 0.0 {
 		errRate = math.Pow(2.0, -1074.0) // the same number of Double.MIN_VALUE in Java
 	}
-	errorRate := C.double(errRate)
-	// Use C functions to calculate logarithm here since Go's built-in math lib doesn't give accurate result.
-	// See https://github.com/golang/go/issues/9546 for details.
-	return int(C.double(-expectedInsertions) * C.log(errorRate) / (C.log(C.double(2.0)) * C.log(C.double(2.0))))
+	return int(float64(-expectedInsertions) * math.Log(errRate) / (math.Log(2.0) * math.Log(2.0)))
 }
 
 func numOfHashFunctions(expectedInsertions int, numBits int) int {
-	return int(math.Max(1.0, float64(C.round(C.double(numBits)/C.double(expectedInsertions)*C.log(C.double(2.0))))))
+	return int(math.Max(1.0, math.Round(float64(numBits)/float64(expectedInsertions)*math.Log(2.0))))
 }
