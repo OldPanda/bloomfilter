@@ -73,6 +73,11 @@ func TestBloomFilter(t *testing.T) {
 			t.Errorf("Expected number %d not in Bloomfilter", i)
 		}
 	}
+
+	_, err = NewBloomFilterWithStrategy(0, 0.01, &Murur128Mitz32{})
+	if err != nil {
+		t.Errorf("Unexpected error happened on initializing Bloomfilter with strategy: %v", err)
+	}
 }
 
 func TestBloomFilterWithUnusualKeys(t *testing.T) {
