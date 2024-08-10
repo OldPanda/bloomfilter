@@ -1,6 +1,6 @@
 # bloomfilter
 
-![Build](https://github.com/OldPanda/bloomfilter/workflows/Build/badge.svg?event=push)
+![Build](https://github.com/OldPanda/bloomfilter/actions/workflows/build.yml/badge.svg)
 [![codecov](https://codecov.io/gh/OldPanda/bloomfilter/branch/master/graph/badge.svg?token=FCV788SCL7)](https://codecov.io/gh/OldPanda/bloomfilter)
 [![Go Reference](https://pkg.go.dev/badge/github.com/OldPanda/bloomfilter.svg)](https://pkg.go.dev/github.com/OldPanda/bloomfilter)
 [![Go Report Card](https://goreportcard.com/badge/github.com/OldPanda/bloomfilter)](https://goreportcard.com/report/github.com/OldPanda/bloomfilter)
@@ -99,12 +99,11 @@ The benchmark testing runs on element insertion and query separately.
 » go test -bench . -benchmem ./...
 # github.com/OldPanda/bloomfilter.test
 goos: darwin
-goarch: amd64
+goarch: arm64
 pkg: github.com/OldPanda/bloomfilter
-cpu: Intel(R) Core(TM) i7-4870HQ CPU @ 2.50GHz
-BenchmarkBloomfilterInsertion-8                  4923142               387.1 ns/op            17 B/op          1 allocs/op
-BenchmarkBloomfilterQuery-8                      4678299               259.6 ns/op            15 B/op          1 allocs/op
-BenchmarkBloomfilterDeserialization-8             162871              7110 ns/op           13200 B/op         52 allocs/op
+BenchmarkBloomfilterInsertion-12                11091939                90.62 ns/op           17 B/op          1 allocs/op
+BenchmarkBloomfilterQuery-12                    20389624                53.16 ns/op           15 B/op          1 allocs/op
+BenchmarkBloomfilterDeserialization-12            293098              3767 ns/op           13200 B/op         52 allocs/op
 PASS
-ok      github.com/OldPanda/bloomfilter 4.880s
+ok      github.com/OldPanda/bloomfilter 3.719s
 ```
