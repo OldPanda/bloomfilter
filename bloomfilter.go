@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 
 	"github.com/Workiva/go-datastructures/bitarray"
@@ -80,7 +79,7 @@ func FromBytes(b []byte) (*BloomFilter, error) {
 	numHashFunctions := int(numHashFuncByte)
 
 	// read bitarray capacity
-	numUint64Bytes, err := ioutil.ReadAll(io.LimitReader(reader, 4))
+	numUint64Bytes, err := io.ReadAll(io.LimitReader(reader, 4))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to read number of bits: %v", err)
 	}
@@ -92,7 +91,7 @@ func FromBytes(b []byte) (*BloomFilter, error) {
 
 	// put blocks back to bitarray
 	for blockIdx := 0; blockIdx < int(numUint64); blockIdx++ {
-		block, err := ioutil.ReadAll(io.LimitReader(reader, 8))
+		block, err := io.ReadAll(io.LimitReader(reader, 8))
 		if err != nil {
 			return nil, fmt.Errorf("Failed to build bitarray: %v", err)
 		}
