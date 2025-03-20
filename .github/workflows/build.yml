@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: [ '1.22', '1.21', '1.20', '1.19', '1.18', '1.17', '1.16' ]
+        go: [ '1.24', '1.23', '1.22', '1.21', '1.20', '1.19', '1.18', '1.17', '1.16' ]
     steps:
       - uses: actions/checkout@v4
       - name: "Setup Golang"
