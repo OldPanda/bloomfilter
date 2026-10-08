@@ -146,11 +146,20 @@ func numOfBits(expectedInsertions int, errRate float64) int {
 		errRate = math.Pow(2.0, -1074.0) // the same number of Double.MIN_VALUE in Java
 	}
 	errorRate := C.double(errRate)
-	// Use C functions to calculate logarithm here since Go's built-in math lib doesn't give accurate result.
-	// See https://github.com/golang/go/issues/9546 for details.
+	// Retain C.log to preserve the existing sizing behavior. Go's math.Log is
+	// not guaranteed to match Java's Math.log bit for bit: a last-bit difference
+	// can change this truncated bit count and the allocation's 64-bit block
+	// count, changing hash positions and serialized bytes.
+	// C.log also depends on the platform's libm and does not guarantee exact
+	// Guava compatibility across platforms. Removing cgo requires an explicit
+	// Guava/JVM target and exact comparisons of sizing and hash counts, including
+	// truncation and rounding boundaries.
+	// Go issue #9546 was closed as invalid, not fixed; it does not establish
+	// bit-identical results. See https://github.com/OldPanda/bloomfilter/issues/24.
 	return int(C.double(-expectedInsertions) * C.log(errorRate) / (C.log(C.double(2.0)) * C.log(C.double(2.0))))
 }
 
 func numOfHashFunctions(expectedInsertions int, numBits int) int {
+	// See numOfBits for the compatibility constraints on replacing C math calls.
 	return int(math.Max(1.0, float64(C.round(C.double(numBits)/C.double(expectedInsertions)*C.log(C.double(2.0))))))
 }
