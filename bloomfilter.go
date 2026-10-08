@@ -9,13 +9,18 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 
 	"github.com/Workiva/go-datastructures/bitarray"
 )
 
 var strategyList []Strategy = []Strategy{&Murur128Mitz32{}, &Murur128Mitz64{}}
+
+// DefaultMaxSerializedSize limits the serialized input accepted by FromBytes
+// to 64 MiB, including its header.
+const DefaultMaxSerializedSize = 64 << 20
+
+const serializedHeaderSize = 6
 
 // BloomFilter definition includes the number of hash functions, bit array, and strategy for hashing.
 type BloomFilter struct {
@@ -57,53 +62,65 @@ func NewBloomFilterWithStrategy(expectedInsertions int, errRate float64, strateg
 	return bloomFilter, nil
 }
 
-// FromBytes creates a new BloomFilter instance by deserializing from byte array.
+// FromBytes creates a new BloomFilter instance from a complete serialized byte
+// array of at most DefaultMaxSerializedSize bytes. It rejects invalid headers,
+// truncated payloads, and trailing bytes before allocating the bit array.
 func FromBytes(b []byte) (*BloomFilter, error) {
-	reader := bytes.NewReader(b)
-	// read strategy
-	strategyByte, err := reader.ReadByte()
-	if err != nil {
-		return nil, fmt.Errorf("failed to read strategy: %v", err)
+	return FromBytesWithLimit(b, DefaultMaxSerializedSize)
+}
+
+// FromBytesWithLimit deserializes a complete BloomFilter with an explicit maximum
+// serialized size in bytes, including its header. maxBytes must be at least 14
+// (the header and one word). Choose a limit that fits the application's memory
+// budget; the bit array requires additional memory approximately equal to the
+// payload size. The word count must fit Guava's positive signed 32-bit length.
+func FromBytesWithLimit(b []byte, maxBytes int) (*BloomFilter, error) {
+	if maxBytes < serializedHeaderSize+8 {
+		return nil, errors.New("maximum serialized size must be at least 14 bytes")
 	}
-	strategyIndex := int(strategyByte)
+	if len(b) > maxBytes {
+		return nil, fmt.Errorf("serialized size %d exceeds limit %d", len(b), maxBytes)
+	}
+	if len(b) < serializedHeaderSize {
+		return nil, errors.New("serialized BloomFilter header must contain 6 bytes")
+	}
+
+	strategyIndex := int(b[0])
 	if strategyIndex >= len(strategyList) {
-		return nil, fmt.Errorf("unknown strategy byte: %v", strategyByte)
+		return nil, fmt.Errorf("unknown strategy byte: %v", b[0])
 	}
 	strategy := strategyList[strategyIndex]
 
-	// read number of hash functions
-	numHashFuncByte, err := reader.ReadByte()
-	if err != nil {
-		return nil, fmt.Errorf("failed to read number of hash functions: %v", err)
+	numHashFunctions := int(b[1])
+	if numHashFunctions == 0 {
+		return nil, errors.New("number of hash functions must be between 1 and 255")
 	}
-	numHashFunctions := int(numHashFuncByte)
 
-	// read bitarray capacity
-	numUint64Bytes, err := io.ReadAll(io.LimitReader(reader, 4))
-	if err != nil {
-		return nil, fmt.Errorf("failed to read number of bits: %v", err)
+	numUint64 := binary.BigEndian.Uint32(b[2:serializedHeaderSize])
+	if numUint64 == 0 || numUint64 > math.MaxInt32 {
+		return nil, errors.New("number of bit array words must be between 1 and 2147483647")
 	}
-	if len(numUint64Bytes) != 4 {
-		return nil, fmt.Errorf("not a valid uint32 bytes: %v", numUint64Bytes)
+	// Calculate in uint64 so hostile word counts cannot overflow an int. Exact
+	// length validation also makes the subsequent offsets safe on 32-bit hosts.
+	requiredSize := uint64(serializedHeaderSize) + uint64(numUint64)*8
+	if requiredSize > uint64(maxBytes) {
+		return nil, fmt.Errorf("declared serialized size %d exceeds limit %d", requiredSize, maxBytes)
 	}
-	numUint64 := binary.BigEndian.Uint32(numUint64Bytes)
+	if requiredSize != uint64(len(b)) {
+		return nil, fmt.Errorf("invalid serialized size: expected %d bytes, got %d", requiredSize, len(b))
+	}
+
 	array := bitarray.NewBitArray(uint64(numUint64) * 64)
 
 	// put blocks back to bitarray
 	for blockIdx := 0; blockIdx < int(numUint64); blockIdx++ {
-		block, err := io.ReadAll(io.LimitReader(reader, 8))
-		if err != nil {
-			return nil, fmt.Errorf("failed to build bitarray: %v", err)
-		}
-		if len(block) != 8 {
-			return nil, fmt.Errorf("not a valid uint64 bytes: %v", block)
-		}
-		num := binary.BigEndian.Uint64(block)
+		offset := serializedHeaderSize + blockIdx*8
+		num := binary.BigEndian.Uint64(b[offset : offset+8])
 		var pos uint64 = 1 << 63
 		var index uint64
 		for i := 0; i < 64; i++ {
 			if num&pos > 0 {
-				index = uint64(blockIdx*64 + (64 - i - 1))
+				index = uint64(blockIdx)*64 + uint64(64-i-1)
 				array.SetBit(index)
 			}
 			pos >>= 1

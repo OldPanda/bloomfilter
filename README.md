@@ -85,11 +85,24 @@ import (
 
 func main() {
 	// create bloomfilter from byte array
-	bf, _ := bloomfilter.FromBytes(bytes)
+	bf, err := bloomfilter.FromBytes(bytes)
+	if err != nil {
+		// reject invalid or oversized serialized data
+		fmt.Println(err)
+		return
+	}
 	// check whether number 100 is in bloomfilter
 	fmt.Println(bf.MightContain(100))
 }
 ```
+
+`FromBytes` accepts one complete serialized filter of at most 64 MiB, including
+its header. It rejects zero capacity, zero hash functions, truncated payloads,
+and trailing bytes before allocating the bit array. Applications needing a
+different size budget can call `FromBytesWithLimit(bytes, maxBytes)` with an
+explicit limit in bytes (at least 14). Decoding allocates additional memory
+approximately equal to the payload size, so choose the limit to fit your memory
+budget and the number of simultaneous decodes.
 
 ## Benchmark
 
