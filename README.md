@@ -124,8 +124,10 @@ to select a different budget.
 
 Filters support concurrent `Put`, `MightContain`, and `ToBytes` calls.
 Serialization takes a consistent snapshot and includes every capacity word,
-including zeros. Do not copy a filter after first use or mutate a byte-slice key
-while a filter operation is reading it.
+including zeros. Never copy a filter value, even before its first operation:
+copies share the bit array but have separate locks. Share the pointer returned
+by a constructor or deserializer instead. Do not mutate a byte-slice key while
+a filter operation is reading it.
 
 Supported keys are `int`, `int32`, `uint32`, `int64`, `uint64`, `string`, and
 `[]byte`. Unsupported keys and empty strings/byte slices return `false` without

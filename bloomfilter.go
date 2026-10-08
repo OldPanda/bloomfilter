@@ -23,8 +23,9 @@ const DefaultMaxSerializedSize = 64 << 20
 const serializedHeaderSize = 6
 
 // BloomFilter supports concurrent insertion, lookup, and serialization.
-// A BloomFilter must not be copied after first use. Its zero value is not usable;
-// create filters through a constructor or deserializer.
+// A BloomFilter must never be copied, even before its first operation: copies
+// share the bit array but have separate locks. Share the pointer returned by a
+// constructor or deserializer instead. Its zero value is not usable.
 type BloomFilter struct {
 	mu               sync.RWMutex
 	numHashFunctions int
