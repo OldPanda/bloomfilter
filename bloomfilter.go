@@ -10,8 +10,6 @@ import (
 	"fmt"
 	"math"
 	"sync"
-
-	"github.com/Workiva/go-datastructures/bitarray"
 )
 
 var strategyList []Strategy = []Strategy{&Murur128Mitz32{}, &Murur128Mitz64{}}
@@ -29,7 +27,7 @@ const serializedHeaderSize = 6
 type BloomFilter struct {
 	mu               sync.RWMutex
 	numHashFunctions int
-	array            bitarray.BitArray
+	array            []uint64
 	strategy         Strategy
 }
 
@@ -106,7 +104,7 @@ func NewBloomFilterWithStrategyAndLimit(expectedInsertions int, errRate float64,
 	}
 	bloomFilter := &BloomFilter{
 		numHashFunctions: numHashFunctions,
-		array:            bitarray.NewBitArray((uint64(numBits) + 63) / 64 * 64),
+		array:            make([]uint64, (uint64(numBits)+63)/64),
 		strategy:         strategy,
 	}
 
@@ -182,21 +180,11 @@ func fromBytes(b []byte, maxBytes int, legacy bool) (*BloomFilter, error) {
 		return nil, fmt.Errorf("invalid serialized size: expected %d bytes, got %d", requiredSize, len(b))
 	}
 
-	array := bitarray.NewBitArray(uint64(numUint64) * 64)
-
-	// put blocks back to bitarray
+	array := make([]uint64, int(numUint64))
+	// Each Guava word is big-endian on the wire; bit zero is its low bit.
 	for blockIdx := 0; blockIdx < int(numUint64); blockIdx++ {
 		offset := serializedHeaderSize + blockIdx*8
-		num := binary.BigEndian.Uint64(b[offset : offset+8])
-		var pos uint64 = 1 << 63
-		var index uint64
-		for i := 0; i < 64; i++ {
-			if num&pos > 0 {
-				index = uint64(blockIdx)*64 + uint64(64-i-1)
-				array.SetBit(index)
-			}
-			pos >>= 1
-		}
+		array[blockIdx] = binary.BigEndian.Uint64(b[offset : offset+8])
 	}
 
 	return &BloomFilter{
@@ -257,17 +245,16 @@ func (bf *BloomFilter) ToBytes() []byte {
 	if bf.numHashFunctions < 1 || bf.numHashFunctions > 255 || bf.array == nil || bf.strategy == nil {
 		return nil
 	}
-	numWords := bf.array.Capacity() / 64
+	numWords := uint64(len(bf.array))
 	if numWords == 0 || numWords > math.MaxInt32 || numWords > uint64(int(^uint(0)>>1)-serializedHeaderSize)/8 {
 		return nil
 	}
 	b := make([]byte, serializedHeaderSize+int(numWords)*8)
 	b[0], b[1] = byte(bf.strategy.getOrdinal()), byte(bf.numHashFunctions)
 	binary.BigEndian.PutUint32(b[2:serializedHeaderSize], uint32(numWords))
-	for iter := bf.array.Blocks(); iter.Next(); {
-		index, block := iter.Value()
-		offset := serializedHeaderSize + int(index)*8
-		binary.BigEndian.PutUint64(b[offset:offset+8], uint64(block))
+	for index, word := range bf.array {
+		offset := serializedHeaderSize + index*8
+		binary.BigEndian.PutUint64(b[offset:offset+8], word)
 	}
 	return b
 }
