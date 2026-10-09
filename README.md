@@ -169,8 +169,10 @@ java -cp /path/to/guava-33.4.8-jre.jar:/tmp/guava-fixtures com.google.common.has
 GitHub Actions runs tests and read-only formatting/vulnerability checks on
 pushes and pull requests. Action commits and the Codecov CLI version are pinned;
 Dependabot proposes Go dependency and action updates weekly. Coverage uploads
-use Codecov's GitHub OIDC authentication in a separate job only for pushes to
-`master`, so test and lint jobs have no upload secret or repository write access.
+use Codecov's GitHub OIDC authentication in a separate job for pushes to `master`
+and pull requests from this repository. Fork pull requests upload in a separate
+read-only job using Codecov's public-repository tokenless support. Test and lint
+jobs have no upload secret or repository write access.
 
 ## Benchmark
 
