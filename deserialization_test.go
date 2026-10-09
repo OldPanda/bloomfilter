@@ -68,15 +68,12 @@ func TestFromBytesPreservesWordsAndValidState(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					if bf.numHashFunctions != int(hashes) || bf.array.Capacity() != uint64(len(words))*64 {
+					if bf.numHashFunctions != int(hashes) || len(bf.array) != len(words) {
 						t.Fatal("decoded header does not match the input")
 					}
 					for wordIdx, word := range words {
-						for bit := uint64(0); bit < 64; bit++ {
-							set, err := bf.array.GetBit(uint64(wordIdx)*64 + bit)
-							if err != nil || set != (word&(uint64(1)<<bit) != 0) {
-								t.Fatalf("word %d bit %d: set=%v error=%v", wordIdx, bit, set, err)
-							}
+						if bf.array[wordIdx] != word {
+							t.Fatalf("word %d: got %x, want %x", wordIdx, bf.array[wordIdx], word)
 						}
 					}
 					if i == 0 && bf.MightContain("not inserted") {
