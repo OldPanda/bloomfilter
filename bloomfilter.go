@@ -5,25 +5,29 @@ package bloomfilter
 // #include<math.h>
 import "C"
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
+	"sync"
 
 	"github.com/Workiva/go-datastructures/bitarray"
 )
 
 var strategyList []Strategy = []Strategy{&Murur128Mitz32{}, &Murur128Mitz64{}}
 
-// DefaultMaxSerializedSize limits the serialized input accepted by FromBytes
-// to 64 MiB, including its header.
+// DefaultMaxSerializedSize limits constructors and default deserializers to
+// 64 MiB of serialized data, including the header.
 const DefaultMaxSerializedSize = 64 << 20
 
 const serializedHeaderSize = 6
 
-// BloomFilter definition includes the number of hash functions, bit array, and strategy for hashing.
+// BloomFilter supports concurrent insertion, lookup, and serialization.
+// A BloomFilter must never be copied, even before its first operation: copies
+// share the bit array but have separate locks. Share the pointer returned by a
+// constructor or deserializer instead. Its zero value is not usable.
 type BloomFilter struct {
+	mu               sync.RWMutex
 	numHashFunctions int
 	array            bitarray.BitArray
 	strategy         Strategy
@@ -39,6 +43,22 @@ func NewBloomFilter(expectedInsertions int, errRate float64) (*BloomFilter, erro
 // * &Murur128Mitz32{}
 // * &Murur128Mitz64{}
 func NewBloomFilterWithStrategy(expectedInsertions int, errRate float64, strategy Strategy) (*BloomFilter, error) {
+	return NewBloomFilterWithStrategyAndLimit(expectedInsertions, errRate, strategy, DefaultMaxSerializedSize)
+}
+
+// NewBloomFilterWithLimit creates a filter using Murur128Mitz64 and an explicit
+// maximum serialized size in bytes, including the header.
+func NewBloomFilterWithLimit(expectedInsertions int, errRate float64, maxBytes int) (*BloomFilter, error) {
+	return NewBloomFilterWithStrategyAndLimit(expectedInsertions, errRate, &Murur128Mitz64{}, maxBytes)
+}
+
+// NewBloomFilterWithStrategyAndLimit creates a filter with an explicit strategy
+// and maximum serialized size. maxBytes must be at least 14. Configurations
+// requiring zero bits or more than 255 hashes are rejected, as in Guava.
+func NewBloomFilterWithStrategyAndLimit(expectedInsertions int, errRate float64, strategy Strategy, maxBytes int) (*BloomFilter, error) {
+	if math.IsNaN(errRate) || math.IsInf(errRate, 0) {
+		return nil, errors.New("error rate must be finite")
+	}
 	if errRate <= 0.0 {
 		return nil, errors.New("error rate must be > 0.0")
 	}
@@ -48,14 +68,45 @@ func NewBloomFilterWithStrategy(expectedInsertions int, errRate float64, strateg
 	if expectedInsertions < 0 {
 		return nil, errors.New("expected insertions must be >= 0")
 	}
+	if maxBytes < serializedHeaderSize+8 {
+		return nil, errors.New("maximum serialized size must be at least 14 bytes")
+	}
+	switch s := strategy.(type) {
+	case *Murur128Mitz32:
+		if s == nil {
+			return nil, errors.New("strategy must not be nil")
+		}
+	case *Murur128Mitz64:
+		if s == nil {
+			return nil, errors.New("strategy must not be nil")
+		}
+	default:
+		return nil, errors.New("strategy must be Murur128Mitz32 or Murur128Mitz64")
+	}
 	if expectedInsertions == 0 {
 		expectedInsertions = 1
 	}
-	numBits := numOfBits(expectedInsertions, errRate)
+	// Bound the floating-point result before converting to int or allocating.
+	// The serialized word count must fit Guava's positive signed 32-bit length.
+	maxWords := uint64(maxBytes-serializedHeaderSize) / 8
+	if maxWords > math.MaxInt32 {
+		maxWords = math.MaxInt32
+	}
+	bits := numOfBitsFloat(expectedInsertions, errRate)
+	if math.IsNaN(bits) || math.IsInf(bits, 0) || bits < 1 {
+		return nil, errors.New("configuration must produce a positive finite bit count")
+	}
+	if bits >= float64(maxWords*64+1) || bits >= float64(int(^uint(0)>>1)) {
+		return nil, errors.New("configuration exceeds the filter size limit")
+	}
+	numBits := int(bits)
 	numHashFunctions := numOfHashFunctions(expectedInsertions, numBits)
+	if numHashFunctions > 255 {
+		return nil, errors.New("configuration requires more than 255 hash functions")
+	}
 	bloomFilter := &BloomFilter{
 		numHashFunctions: numHashFunctions,
-		array:            bitarray.NewBitArray(uint64(math.Ceil(float64(numBits)/64.0) * 64.0)),
+		array:            bitarray.NewBitArray((uint64(numBits) + 63) / 64 * 64),
 		strategy:         strategy,
 	}
 
@@ -75,6 +126,24 @@ func FromBytes(b []byte) (*BloomFilter, error) {
 // budget; the bit array requires additional memory approximately equal to the
 // payload size. The word count must fit Guava's positive signed 32-bit length.
 func FromBytesWithLimit(b []byte, maxBytes int) (*BloomFilter, error) {
+	return fromBytes(b, maxBytes, false)
+}
+
+// FromLegacyBytes reads snapshots created by this Go library's former 32-bit
+// strategy (hash loop starting at zero). It uses DefaultMaxSerializedSize.
+// Use FromBytes for Java Guava data. Legacy snapshots must be rebuilt from
+// their original keys before exchanging them with Guava.
+func FromLegacyBytes(b []byte) (*BloomFilter, error) {
+	return FromLegacyBytesWithLimit(b, DefaultMaxSerializedSize)
+}
+
+// FromLegacyBytesWithLimit reads legacy Go snapshots with an explicit maximum
+// serialized size. Only strategy zero differs from the standard decoder.
+func FromLegacyBytesWithLimit(b []byte, maxBytes int) (*BloomFilter, error) {
+	return fromBytes(b, maxBytes, true)
+}
+
+func fromBytes(b []byte, maxBytes int, legacy bool) (*BloomFilter, error) {
 	if maxBytes < serializedHeaderSize+8 {
 		return nil, errors.New("maximum serialized size must be at least 14 bytes")
 	}
@@ -90,6 +159,9 @@ func FromBytesWithLimit(b []byte, maxBytes int) (*BloomFilter, error) {
 		return nil, fmt.Errorf("unknown strategy byte: %v", b[0])
 	}
 	strategy := strategyList[strategyIndex]
+	if legacy && strategyIndex == 0 {
+		strategy = &legacyMurur128Mitz32{}
+	}
 
 	numHashFunctions := int(b[1])
 	if numHashFunctions == 0 {
@@ -136,29 +208,49 @@ func FromBytesWithLimit(b []byte, maxBytes int) (*BloomFilter, error) {
 
 // Put inserts element of any type into BloomFilter.
 func (bf *BloomFilter) Put(key interface{}) bool {
+	bf.mu.Lock()
+	defer bf.mu.Unlock()
 	return bf.strategy.put(key, bf.numHashFunctions, bf.array)
 }
 
 // MightContain returns a boolean value to indicate if given element is in BloomFilter.
 func (bf *BloomFilter) MightContain(key interface{}) bool {
+	bf.mu.RLock()
+	defer bf.mu.RUnlock()
 	return bf.strategy.mightContain(key, bf.numHashFunctions, bf.array)
 }
 
 // ToBytes serializes BloomFilter to byte array, which is compatible with
-// Java's Guava library.
+// Java's Guava library. It takes a consistent snapshot of all capacity words,
+// including leading and trailing zeros. It returns nil for invalid filter state.
+// Filters loaded by FromLegacyBytes retain the legacy Go hashing semantics;
+// their serialized strategy-zero data must not be used as Guava data.
 func (bf *BloomFilter) ToBytes() []byte {
-	buf := new(bytes.Buffer)
-	buf.WriteByte(byte(bf.strategy.getOrdinal()))
-	buf.WriteByte(byte(bf.numHashFunctions))
-	binary.Write(buf, binary.BigEndian, uint32(math.Ceil(float64(bf.array.Capacity())/64.0)))
-	for iter := bf.array.Blocks(); iter.Next(); {
-		_, block := iter.Value()
-		binary.Write(buf, binary.BigEndian, block)
+	bf.mu.RLock()
+	defer bf.mu.RUnlock()
+	if bf.numHashFunctions < 1 || bf.numHashFunctions > 255 || bf.array == nil || bf.strategy == nil {
+		return nil
 	}
-	return buf.Bytes()
+	numWords := bf.array.Capacity() / 64
+	if numWords == 0 || numWords > math.MaxInt32 || numWords > uint64(int(^uint(0)>>1)-serializedHeaderSize)/8 {
+		return nil
+	}
+	b := make([]byte, serializedHeaderSize+int(numWords)*8)
+	b[0], b[1] = byte(bf.strategy.getOrdinal()), byte(bf.numHashFunctions)
+	binary.BigEndian.PutUint32(b[2:serializedHeaderSize], uint32(numWords))
+	for iter := bf.array.Blocks(); iter.Next(); {
+		index, block := iter.Value()
+		offset := serializedHeaderSize + int(index)*8
+		binary.BigEndian.PutUint64(b[offset:offset+8], uint64(block))
+	}
+	return b
 }
 
 func numOfBits(expectedInsertions int, errRate float64) int {
+	return int(numOfBitsFloat(expectedInsertions, errRate))
+}
+
+func numOfBitsFloat(expectedInsertions int, errRate float64) float64 {
 	if errRate == 0.0 {
 		errRate = math.Pow(2.0, -1074.0) // the same number of Double.MIN_VALUE in Java
 	}
@@ -173,7 +265,7 @@ func numOfBits(expectedInsertions int, errRate float64) int {
 	// truncation and rounding boundaries.
 	// Go issue #9546 was closed as invalid, not fixed; it does not establish
 	// bit-identical results. See https://github.com/OldPanda/bloomfilter/issues/24.
-	return int(C.double(-expectedInsertions) * C.log(errorRate) / (C.log(C.double(2.0)) * C.log(C.double(2.0))))
+	return float64(C.double(-expectedInsertions) * C.log(errorRate) / (C.log(C.double(2.0)) * C.log(C.double(2.0))))
 }
 
 func numOfHashFunctions(expectedInsertions int, numBits int) int {

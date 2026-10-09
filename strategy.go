@@ -1,7 +1,6 @@
 package bloomfilter
 
 import (
-	"log"
 	"math"
 
 	"github.com/Workiva/go-datastructures/bitarray"
@@ -20,10 +19,13 @@ type Strategy interface {
 type Murur128Mitz32 struct{}
 
 func (m *Murur128Mitz32) put(key interface{}, numHashFunctions int, array bitarray.BitArray) bool {
+	return putMurmur32(key, numHashFunctions, array, 1)
+}
+
+func putMurmur32(key interface{}, numHashFunctions int, array bitarray.BitArray, start int32) bool {
 	bitSize := array.Capacity()
 	bytes := GetBytes(key)
 	if len(bytes) == 0 {
-		log.Printf("Failed to convert %v to byte array\n", key)
 		return false
 	}
 	hash64, _ := murmur3.Sum128(bytes)
@@ -31,8 +33,7 @@ func (m *Murur128Mitz32) put(key interface{}, numHashFunctions int, array bitarr
 	hash2 := int32(hash64 >> 32)
 
 	bitsChanged := false
-	var i int32 = 0
-	for ; i < int32(numHashFunctions); i++ {
+	for i := start; i < start+int32(numHashFunctions); i++ {
 		combinedHash := hash1 + (i * hash2)
 		if combinedHash < 0 {
 			combinedHash = int32(uint32(combinedHash) ^ uint32(0xFFFFFFFF))
@@ -49,18 +50,20 @@ func (m *Murur128Mitz32) put(key interface{}, numHashFunctions int, array bitarr
 }
 
 func (m *Murur128Mitz32) mightContain(key interface{}, numHashFunctions int, array bitarray.BitArray) bool {
+	return mightContainMurmur32(key, numHashFunctions, array, 1)
+}
+
+func mightContainMurmur32(key interface{}, numHashFunctions int, array bitarray.BitArray, start int32) bool {
 	bitSize := array.Capacity()
 	bytes := GetBytes(key)
 	if len(bytes) == 0 {
-		log.Printf("Failed to convert %v to byte array\n", key)
 		return false
 	}
 	hash64, _ := murmur3.Sum128(bytes)
 	hash1 := int32(hash64)
 	hash2 := int32(hash64 >> 32)
 
-	var i int32 = 0
-	for ; i < int32(numHashFunctions); i++ {
+	for i := start; i < start+int32(numHashFunctions); i++ {
 		combinedHash := hash1 + (i * hash2)
 		if combinedHash < 0 {
 			combinedHash = int32(uint32(combinedHash) ^ uint32(0xFFFFFFFF))
@@ -79,6 +82,20 @@ func (m *Murur128Mitz32) getOrdinal() int {
 	return 0
 }
 
+// The old Go strategy used the same ordinal as Guava despite different loop
+// bounds. There is no reliable way to identify it from serialized bytes alone.
+type legacyMurur128Mitz32 struct{}
+
+func (m *legacyMurur128Mitz32) put(key interface{}, numHashFunctions int, array bitarray.BitArray) bool {
+	return putMurmur32(key, numHashFunctions, array, 0)
+}
+
+func (m *legacyMurur128Mitz32) mightContain(key interface{}, numHashFunctions int, array bitarray.BitArray) bool {
+	return mightContainMurmur32(key, numHashFunctions, array, 0)
+}
+
+func (m *legacyMurur128Mitz32) getOrdinal() int { return 0 }
+
 // Murur128Mitz64 is the implementation of Guava's MURMUR128_MITZ_64 class in Go.
 // See https://github.com/google/guava/blob/master/guava/src/com/google/common/hash/BloomFilterStrategies.java#L93 for details.
 type Murur128Mitz64 struct{}
@@ -87,7 +104,6 @@ func (m *Murur128Mitz64) put(key interface{}, numHashFunctions int, array bitarr
 	bitSize := array.Capacity()
 	bytes := GetBytes(key)
 	if len(bytes) == 0 {
-		log.Printf("Failed to convert %v to byte array\n", key)
 		return false
 	}
 	hash1, hash2 := murmur3.Sum128(bytes)
@@ -112,7 +128,6 @@ func (m *Murur128Mitz64) mightContain(key interface{}, numHashFunctions int, arr
 	bitSize := array.Capacity()
 	bytes := GetBytes(key)
 	if len(bytes) == 0 {
-		log.Printf("Failed to convert %v to byte array\n", key)
 		return false
 	}
 	hash1, hash2 := murmur3.Sum128(bytes)
