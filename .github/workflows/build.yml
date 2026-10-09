@@ -40,8 +40,8 @@ jobs:
         run: go mod verify
       - name: Test
         run: go test -race -coverpkg=./... -coverprofile=coverage.txt ./...
-      - name: Preserve coverage for trusted upload
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master' && matrix.go == '1.27.2'
+      - name: Preserve coverage for upload
+        if: matrix.go == '1.27.2' && (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/master'))
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage
@@ -51,7 +51,7 @@ jobs:
 
   coverage:
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -67,6 +67,29 @@ jobs:
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           use_oidc: true
+          version: v11.3.1
+          files: coverage.txt
+          disable_search: true
+          skip_validation: false
+          fail_ci_if_error: true
+
+  coverage-fork:
+    needs: build
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: coverage
+      - name: Upload fork coverage without credentials
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          use_oidc: false
           version: v11.3.1
           files: coverage.txt
           disable_search: true
