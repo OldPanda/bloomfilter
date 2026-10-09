@@ -17,6 +17,11 @@ public final class FixtureGenerator {
       try (OutputStream out = Files.newOutputStream(directory.resolve("500_0_01_0_to_99_" + name + ".dump"))) {
         filter.writeTo(out);
       }
+      BloomFilter<byte[]> emptyKeyFilter = BloomFilter.create(Funnels.byteArrayFunnel(), 500L, .01, strategy);
+      emptyKeyFilter.put(new byte[0]);
+      try (OutputStream out = Files.newOutputStream(directory.resolve("500_0_01_empty_" + name + ".dump"))) {
+        emptyKeyFilter.writeTo(out);
+      }
     }
   }
 }

@@ -206,18 +206,44 @@ func fromBytes(b []byte, maxBytes int, legacy bool) (*BloomFilter, error) {
 	}, nil
 }
 
-// Put inserts element of any type into BloomFilter.
+// Put inserts a supported key, including empty strings and byte slices, and
+// reports whether any bits changed. Unsupported key types return false.
+// Use PutChecked to distinguish unsupported keys from an unchanged insertion.
 func (bf *BloomFilter) Put(key interface{}) bool {
 	bf.mu.Lock()
 	defer bf.mu.Unlock()
 	return bf.strategy.put(key, bf.numHashFunctions, bf.array)
 }
 
-// MightContain returns a boolean value to indicate if given element is in BloomFilter.
+// PutChecked inserts a supported key and reports whether any bits changed.
+// Unsupported key types return false and ErrUnsupportedKey without modifying
+// the filter. Key encoding is documented by GetBytesChecked.
+func (bf *BloomFilter) PutChecked(key interface{}) (bool, error) {
+	encoded, err := GetBytesChecked(key)
+	if err != nil {
+		return false, err
+	}
+	return bf.Put(encoded), nil
+}
+
+// MightContain reports possible membership for supported keys. False means
+// absence or an unsupported key type; true can be a false positive.
+// Use MightContainChecked to distinguish unsupported keys from absence.
 func (bf *BloomFilter) MightContain(key interface{}) bool {
 	bf.mu.RLock()
 	defer bf.mu.RUnlock()
 	return bf.strategy.mightContain(key, bf.numHashFunctions, bf.array)
+}
+
+// MightContainChecked reports possible membership for supported keys and
+// returns ErrUnsupportedKey for other types. A true result can be a false
+// positive. Key encoding is documented by GetBytesChecked.
+func (bf *BloomFilter) MightContainChecked(key interface{}) (bool, error) {
+	encoded, err := GetBytesChecked(key)
+	if err != nil {
+		return false, err
+	}
+	return bf.MightContain(encoded), nil
 }
 
 // ToBytes serializes BloomFilter to byte array, which is compatible with

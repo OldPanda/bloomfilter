@@ -21,6 +21,22 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.27.2'
+      - name: Generate dependency inventory
+        id: inventory
+        run: |
+          mkdir -p target/security-inventory
+          git rev-parse HEAD > target/security-inventory/commit.txt
+          go env -json GOVERSION GOOS GOARCH CGO_ENABLED > target/security-inventory/environment.json
+          go list -m -json all > target/security-inventory/modules.json
+          go list -deps -test -json ./... > target/security-inventory/packages.json
+      - name: Preserve dependency inventory
+        if: always() && steps.inventory.outcome == 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: security-inventory
+          path: target/security-inventory/
+          if-no-files-found: error
+          retention-days: 14
       - name: Check formatting
         run: |
           files=$(git ls-files '*.go' | xargs gofmt -l)
@@ -34,3 +50,26 @@ jobs:
         run: go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
       - name: Scan imported code and tests
         run: govulncheck -test ./...
+
+  fuzz:
+    name: Bounded deserialization fuzzing
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.2'
+      - name: Fuzz bounded standard and legacy deserializers
+        run: go test -run='^$' -fuzz='^FuzzFromBytesWithLimit$' -fuzztime=30s -parallel=2 -timeout=2m ./...
+      - name: Preserve failing fuzz inputs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-failures
+          path: testdata/fuzz/
+          if-no-files-found: ignore
+          retention-days: 14

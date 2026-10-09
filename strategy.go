@@ -24,8 +24,8 @@ func (m *Murur128Mitz32) put(key interface{}, numHashFunctions int, array bitarr
 
 func putMurmur32(key interface{}, numHashFunctions int, array bitarray.BitArray, start int32) bool {
 	bitSize := array.Capacity()
-	bytes := GetBytes(key)
-	if len(bytes) == 0 {
+	bytes, err := GetBytesChecked(key)
+	if err != nil {
 		return false
 	}
 	hash64, _ := murmur3.Sum128(bytes)
@@ -55,8 +55,8 @@ func (m *Murur128Mitz32) mightContain(key interface{}, numHashFunctions int, arr
 
 func mightContainMurmur32(key interface{}, numHashFunctions int, array bitarray.BitArray, start int32) bool {
 	bitSize := array.Capacity()
-	bytes := GetBytes(key)
-	if len(bytes) == 0 {
+	bytes, err := GetBytesChecked(key)
+	if err != nil {
 		return false
 	}
 	hash64, _ := murmur3.Sum128(bytes)
@@ -102,8 +102,8 @@ type Murur128Mitz64 struct{}
 
 func (m *Murur128Mitz64) put(key interface{}, numHashFunctions int, array bitarray.BitArray) bool {
 	bitSize := array.Capacity()
-	bytes := GetBytes(key)
-	if len(bytes) == 0 {
+	bytes, err := GetBytesChecked(key)
+	if err != nil {
 		return false
 	}
 	hash1, hash2 := murmur3.Sum128(bytes)
@@ -126,8 +126,8 @@ func (m *Murur128Mitz64) put(key interface{}, numHashFunctions int, array bitarr
 
 func (m *Murur128Mitz64) mightContain(key interface{}, numHashFunctions int, array bitarray.BitArray) bool {
 	bitSize := array.Capacity()
-	bytes := GetBytes(key)
-	if len(bytes) == 0 {
+	bytes, err := GetBytesChecked(key)
+	if err != nil {
 		return false
 	}
 	hash1, hash2 := murmur3.Sum128(bytes)
