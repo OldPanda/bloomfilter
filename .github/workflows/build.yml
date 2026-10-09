@@ -69,6 +69,7 @@ jobs:
           use_oidc: true
           version: v11.3.1
           files: coverage.txt
+          override_pr: ${{ github.event.pull_request.number }}
           disable_search: true
           skip_validation: false
           fail_ci_if_error: true
@@ -92,6 +93,7 @@ jobs:
           use_oidc: false
           version: v11.3.1
           files: coverage.txt
+          override_pr: ${{ github.event.pull_request.number }}
           disable_search: true
           skip_validation: false
           fail_ci_if_error: true
