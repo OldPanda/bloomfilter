@@ -12,8 +12,11 @@ Yet another Bloomfilter implementation in Go, compatible with Java's Guava libra
 
 The library retains Go 1.16 source compatibility and requires a C compiler.
 Use a supported, patched Go toolchain for production builds and security checks;
-CI tests the patched Go 1.26 and 1.27 releases and runs a separate Go 1.16.15
-compatibility job. The library retains C math calls for sizing compatibility.
+CI tests the latest stable and previous stable Go releases using `stable` and
+`oldstable`, alongside pinned Go 1.26.9 and 1.27.2 builds and a separate Go 1.16.15
+compatibility job. Rolling jobs check for the latest release on each run; lint,
+vulnerability scans, and fuzzing use the latest stable toolchain. The library
+retains C math calls for sizing compatibility.
 
 Bit storage uses a private fixed-size `[]uint64` buffer protected by the filter's
 mutex. MurmurHash3 x64_128 is implemented locally with seed zero and explicit

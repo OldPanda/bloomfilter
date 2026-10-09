@@ -20,7 +20,8 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.27.2'
+          go-version: 'stable'
+          check-latest: true
           cache-dependency-path: go.mod
       - name: Generate dependency inventory
         id: inventory
@@ -63,7 +64,8 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.27.2'
+          go-version: 'stable'
+          check-latest: true
           cache-dependency-path: go.mod
       - name: Fuzz bounded standard and legacy deserializers
         run: go test -run='^$' -fuzz='^FuzzFromBytesWithLimit$' -fuzztime=30s -parallel=2 -timeout=2m ./...
